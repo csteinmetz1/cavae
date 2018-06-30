@@ -1,8 +1,10 @@
+import sys
 import keras
 from keras import layers
 from keras import backend as K
 from keras.models import Model
 import numpy as np
+import util
 
 img_shape = (28, 28, 3)
 batch_size = 16
@@ -33,13 +35,13 @@ decoder_input = layers.Input(K.int_shape(z)[1:])
 x = layers.Dense(np.prod(shape_before_flattening[1:]), activation='relu')(decoder_input)
 x = layers.Reshape(shape_before_flattening[1:])(x)
 x = layers.Conv2DTranspose(32, 3, padding='same', activation='relu', strides=(2, 2))(x)
-x = layers.Conv2D(1, 3, padding='same', activation='sigmoid')(x)
+x = layers.Conv2D(3, 3, padding='same', activation='sigmoid')(x)
 
 decoder = Model(decoder_input, x)
 
 z_decoded = decoder(z)
 
-class CustomVarionalLayer(keras.layers.Layer):
+class CustomVariationalLayer(keras.layers.Layer):
 
 	def vae_loss(self, x, z_decoded):
 		x = K.flatten(x)
@@ -56,9 +58,22 @@ class CustomVarionalLayer(keras.layers.Layer):
 		self.add_loss(loss, inputs=inputs)
 		return x
 
-y = CustomVarionalLayer()([input_img, z_decoded])
+y = CustomVariationalLayer()([input_img, z_decoded])
 
 vae = Model(input_img, y)
 vae.compile(optimizer='rmsprop', loss=None)
 vae.summary()
 
+print("\nLoading cover art data...")
+x_train, x_test = util.load_data(80)
+x_train = x_train.astype('float32') / 255.
+x_test = x_test.astype('float32') / 255.
+
+print("\n\nLoaded training data with shape:")
+print(x_train.shape)
+
+vae.fit(x=x_train, y=None,
+		shuffle=True,
+		epochs=10,
+		batch_size=batch_size,
+		validation_data=(x_test, None))
