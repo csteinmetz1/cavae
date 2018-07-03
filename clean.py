@@ -1,36 +1,39 @@
 import os
 import sys
 import glob
+from tqdm import tqdm
 from PIL import Image
 
-in_image_dir = 's'
-out_image_dir = 's_out'
-sm_size = 28, 28
-lg_size = 128, 128
-n_processed = 0
-n_rejected = 0
+def clean_images(dataset_dir, sizes, output_dir):
+	if not os.path.isdir(output_dir):
+		os.makedirs(output_dir)
 
-if not os.path.isdir(out_image_dir):
-	os.makedirs(out_image_dir)
+	image_list = glob.glob(os.path.join(dataset_dir, '*.jpg'))
+	n_processed = 0
+	n_rejected = 0	
 
-for idx, image in enumerate(glob.glob(os.path.join(in_image_dir, '*.jpg'))):
-	
-	try:
-		im = Image.open(image).convert('RGB')
-		im_sm = im.copy()
-		im_lg = im.copy()
-		w, h = im.size	
+	for idx, image in enumerate(tqdm(iterable=image_list, ncols=100)):
+		
+		try:
+			im = Image.open(image).convert('RGB')
+			w, h = im.size	
 
-		if w == h:
-			im_sm.thumbnail(sm_size, Image.ANTIALIAS)
-			im_lg.thumbnail(lg_size, Image.ANTIALIAS)
-			n_processed += 1
-			im_sm.save(os.path.join(out_image_dir, "sm_" + str(n_processed) + ".jpg"), 'JPEG')
-			im_lg.save(os.path.join(out_image_dir, "lg_" + str(n_processed) + ".jpg"), 'JPEG')
-			sys.stdout.write("* Processed {0: >8} album covers | Rejected {1: >8} album cover.\r".format(n_processed, n_rejected))
-			sys.stdout.flush()
+			if w == h:
+				for size in sizes:
+					im_thumb = im.copy()
+					im_thumb.thumbnail(size, Image.ANTIALIAS)
+					im_thumb.save(os.path.join(output_dir, "{0}{1}_{2}.jpg".format(dataset_dir, n_processed, size[0])), 'JPEG')
+					n_processed += 1
+			else:
+				n_rejected += 1
 
-	except Exception as e:
-		n_rejected += 1
-	
+		except Exception as e:
+			n_rejected += 1
+		
+	print("* Processed {0} album covers | Rejected {1} album cover.".format(n_processed, n_rejected))
 
+img_dirs = ['a', 'b', 'c', 's']
+sizes = [(28, 28), (128, 128)]
+
+for img_dir in img_dirs:
+	clean_images(img_dir, sizes, 'covers')
